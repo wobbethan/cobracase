@@ -39,7 +39,7 @@ const LoginModal = ({
             Please login or create an account to complete your purchase
           </DialogDescription>
         </DialogHeader>
-        <div className="grid grid-cols 2 gap-6 divide-x divide-gray-200">
+        <div className="grid grid-cols-2 gap-6 divide-x divide-gray-200">
           <LoginLink className={buttonVariants({ variant: "default" })}>
             Login
           </LoginLink>

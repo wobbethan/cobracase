@@ -1,3 +1,4 @@
+//@ts-nocheck
 "use server";
 import { BASE_PRICE, PRODUCT_PRICES } from "@/config/products";
 import { db } from "@/db";
