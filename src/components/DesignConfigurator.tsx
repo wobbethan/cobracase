@@ -7,7 +7,7 @@ import { Rnd } from "react-rnd";
 import HandleComponent from "./HandleComponent";
 import { ScrollArea } from "./ui/scroll-area";
 import { Field, Radio, RadioGroup, RadioGroupOption } from "@headlessui/react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   COLORS,
   FINISHES,
@@ -26,6 +26,15 @@ import { Check, ChevronsDown, ArrowRight } from "lucide-react";
 import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu";
 import { formatPrice } from "../lib/utils";
 import { BASE_PRICE } from "@/config/products";
+import { useUploadThing } from "@/lib/uploadthing";
+import { toast, useToast } from "./ui/use-toast";
+import { useMutation } from "@tanstack/react-query";
+import {
+  SaveConfigArgs,
+  saveConfig as _saveConfig,
+} from "@/app/configure/design/actions";
+import { useRouter } from "next/navigation";
+
 interface DCProps {
   configId: string;
   imageUrl: string;
@@ -36,6 +45,26 @@ const DesignConfigurator = ({
   imageUrl,
   imageDimensions,
 }: DCProps) => {
+  const { toast } = useToast();
+  const router = useRouter();
+
+  const { mutate: saveConfig } = useMutation({
+    mutationKey: ["save-config"],
+    mutationFn: async (args: SaveConfigArgs) => {
+      await Promise.all([saveConfiguration(), _saveConfig(args)]);
+    },
+    onError: () => {
+      toast({
+        title: "Something went wrong",
+        description: "There was a problem saving your config, please try again",
+        variant: "destructive",
+      });
+    },
+    onSuccess: () => {
+      router.push(`/configure/preview?id=${configId}`);
+    },
+  });
+
   const [options, setOptions] = useState<{
     color: (typeof COLORS)[number];
     model: (typeof MODELS.options)[number];
@@ -48,11 +77,86 @@ const DesignConfigurator = ({
     finish: FINISHES.options[0],
   });
 
+  const [renderedDimension, setRenderedDimension] = useState({
+    width: imageDimensions.width / 4,
+    height: imageDimensions.height / 4,
+  });
+
+  const [renderedPosition, setRenderedPosition] = useState({ x: 150, y: 205 });
+
+  const phoneCaseRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const { startUpload } = useUploadThing("imageUploader");
+
+  async function saveConfiguration() {
+    try {
+      const {
+        left: caseLeft,
+        top: caseTop,
+        width,
+        height,
+      } = phoneCaseRef.current!.getBoundingClientRect();
+      const { left: containerLeft, top: containerTop } =
+        containerRef.current!.getBoundingClientRect();
+      const leftOffset = caseLeft - containerLeft;
+      const topOffset = caseTop - containerTop;
+
+      const actualX = renderedPosition.x - leftOffset;
+      const actualY = renderedPosition.y - topOffset;
+
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+
+      const userImage = new Image();
+      userImage.crossOrigin = "anonymous";
+      userImage.src = imageUrl;
+      await new Promise((resolve) => (userImage.onload = resolve));
+
+      ctx?.drawImage(
+        userImage,
+        actualX,
+        actualY,
+        renderedDimension.width,
+        renderedDimension.height
+      );
+
+      const base64 = canvas.toDataURL();
+      const base64Data = base64.split(",")[1];
+
+      const blob = base64ToBlob(base64Data, "image/png");
+      const file = new File([blob], "filename.png", { type: "image.png" });
+      await startUpload([file], { configId });
+    } catch (error) {
+      toast({
+        title: "Something went wrong",
+        description: "There was a problem saving your config, please try again",
+        variant: "destructive",
+      });
+    }
+  }
+
+  function base64ToBlob(base64: string, mimeType: string) {
+    const byteCharacters = atob(base64);
+    const byteNumbers = new Array(byteCharacters.length);
+    for (let i = 0; i < byteCharacters.length; i++) {
+      byteNumbers[i] = byteCharacters.charCodeAt(i);
+    }
+    const byteArray = new Uint8Array(byteNumbers);
+    return new Blob([byteArray], { type: mimeType });
+  }
+
   return (
-    <div className="relative mt-20 grid grid-cols-3 mb-20 pb-20 ">
-      <div className="relative h-[37.5rem] overflow-hidden col-span-2 w-full max-w-4xl flex items-center justify-center rounded-lg border-2 border-dashed border-gray-300 p-12 text-center focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2">
+    <div className="relative mt-20 grid grid-cols-1 lg:grid-cols-3 mb-20 pb-20 ">
+      <div
+        ref={containerRef}
+        className="relative h-[37.5rem] overflow-hidden col-span-2 w-full max-w-4xl flex items-center justify-center rounded-lg border-2 border-dashed border-gray-300 p-12 text-center focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+      >
         <div className="relative w-60 bg-opacity-50 pointer-events-none aspect-[896/1831]">
           <AspectRatio
+            ref={phoneCaseRef}
             ratio={896 / 1831}
             className="pointer-events-none relative z-50 aspect-[896/1831] w-full"
           >
@@ -72,6 +176,17 @@ const DesignConfigurator = ({
           />
         </div>
         <Rnd
+          onResizeStop={(_, __, ref, ___, { x, y }) => {
+            setRenderedDimension({
+              width: parseInt(ref.style.width.slice(0, -2)),
+              height: parseInt(ref.style.height.slice(0, -2)),
+            });
+            setRenderedPosition({ x, y });
+          }}
+          onDragStop={(_, data) => {
+            const { x, y } = data;
+            setRenderedPosition({ x, y });
+          }}
           className="absolute z-20 border-[3px] border-primary"
           default={{
             x: 150,
@@ -97,7 +212,7 @@ const DesignConfigurator = ({
           </div>
         </Rnd>
       </div>
-      <div className="h-[37.5rem] flex flex-col bg-white">
+      <div className="h-[37.5rem] w-full col-span-full lg:col-span-1 flex flex-col bg-white">
         <ScrollArea className="relative flex-1 overflow-auto">
           <div
             className="absolute z-10 inset-x-0 bottom-0 h-12 bg-gradient-to-t from-white pointer-events-none"
@@ -125,10 +240,10 @@ const DesignConfigurator = ({
                       <Radio
                         key={color.label}
                         value={color}
-                        className={({ active, checked }) =>
+                        className={({ checked }) =>
                           cn(
                             "relative -m-0.5 flex cursor-pointer items-center justify-center rounded-full p-0.5 active:ring-0 focus:ring-0 active:outline-none focus:outline-none border-2 border-transparent",
-                            { [`border-${color.tw}`]: active || checked }
+                            { [`border-${color.tw}`]: checked }
                           )
                         }
                       >
@@ -256,7 +371,19 @@ const DesignConfigurator = ({
                     100
                 )}
               </p>
-              <Button size="sm" className="w-full">
+              <Button
+                size="sm"
+                className="w-full"
+                onClick={() =>
+                  saveConfig({
+                    configId,
+                    color: options.color.value,
+                    finish: options.finish.value,
+                    material: options.material.value,
+                    model: options.model.value,
+                  })
+                }
+              >
                 Continue <ArrowRight className="h-4 w-4 ml-1.5 inline" />
               </Button>
             </div>
