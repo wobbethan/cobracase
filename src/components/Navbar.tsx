@@ -28,17 +28,17 @@ const Navbar = async () => {
                 >
                   Sign out
                 </Link>
-                {isAdmin ? (
-                  <Link
-                    href={"/dashboard"}
-                    className={buttonVariants({
-                      size: "sm",
-                      variant: "ghost",
-                    })}
-                  >
-                    Dashboard
-                  </Link>
-                ) : null}
+
+                <Link
+                  href={"/dashboard"}
+                  className={buttonVariants({
+                    size: "sm",
+                    variant: "ghost",
+                  })}
+                >
+                  Dashboard
+                </Link>
+
                 <Link
                   href={"/configure/upload"}
                   className={buttonVariants({
@@ -69,6 +69,15 @@ const Navbar = async () => {
                   })}
                 >
                   Login
+                </Link>
+                <Link
+                  href={"/dashboard"}
+                  className={buttonVariants({
+                    size: "sm",
+                    variant: "ghost",
+                  })}
+                >
+                  Dashboard
                 </Link>
                 <div className="h-8 w-px bg-zinc-200 hidden sm:block"></div>
                 <Link

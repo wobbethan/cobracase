@@ -20,14 +20,15 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import StatusDropdown from "./StatusDropdown";
+import MaxWidthWrapper from "@/components/MaxWidthWrapper";
 
 const Page = async () => {
-  const { getUser } = getKindeServerSession();
-  const user = await getUser();
+  // const { getUser } = getKindeServerSession();
+  // const user = await getUser();
 
-  const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
+  // const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
 
-  if (!user || user?.email !== ADMIN_EMAIL) return redirect("/");
+  // if (!user || user?.email !== ADMIN_EMAIL) return redirect("/");
 
   const orders = await db.order.findMany({
     where: {
@@ -74,8 +75,14 @@ const Page = async () => {
   const MONTHLY_GOAL = 2500;
 
   return (
-    <div className="flex min-h-screen w-full bg-muted/40">
+    <MaxWidthWrapper className="flex min-h-screen w-full bg-muted/40">
       <div className="max-w-7xl w-full mx-auto flex flex-col sm:gap-4 sm:py-4">
+        <h1 className="self-center lg:text-2xl md:text-xl text-sm  italic font-semibold flex items-center text-center flex-col my-2">
+          <span>This dashboard was made public for demonstration purposes</span>
+          <span className="md:text-lg text-xs">
+            This would only be available for admins
+          </span>
+        </h1>
         <div className="flex flex-col gap-16">
           <div className="grid gap-4 sm:grid-cols-2">
             <Card>
@@ -154,7 +161,7 @@ const Page = async () => {
           </Table>
         </div>
       </div>
-    </div>
+    </MaxWidthWrapper>
   );
 };
 
